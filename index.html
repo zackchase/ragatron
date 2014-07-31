@@ -1,0 +1,214 @@
+<html>
+
+
+    <head>
+        <link rel="stylesheet" href = "css/bootstrap.min.css">
+        <script src = "js/palette.js"></script>
+    </head>
+
+    <body onload="draw();">
+
+        <div id ="welcome">
+            <h4>Ragatron 0.1</h4>
+            <p>Press the "Tampura" button to turn the tampura on and off. Improvise by pressing letter and number keys on your keyboard. Change the scale by pressing on the colored blocks.</p>
+        </div>
+
+        <div>
+        <button type="button" class="btn btn-lg btn-primary" id="tampuraButton">Tampura</button>
+        </div>
+
+        <div>
+        <canvas id="canvas" width="1000" height="500"></canvas>
+        </div>
+
+        <script src = "./js/jquery.js")></script>
+        <script src = "./js/charToStep.js")></script>
+        <script src = "./js/justIntonation.js"></script>
+        <Script src = "./js/ragaCodes.js"></script>
+        <script>
+            // This would work for chrome
+            //  var audioCtx = new AudioContext();
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+
+            var justIntonation = true;
+
+            // list that keeps track of which keys are pressed at any time
+            // when a key is pressed it is added to the list
+            // on keyup() the key is removed from the list
+            var keysPressed = [];
+
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            //oscillator.type = "square";
+            //oscillator.frequency.value = 440;
+            //oscillator.start();
+
+
+            var base = 220;
+            var r = Math.pow(2, 1/12);
+
+            //create an oscillator for each note?
+
+            oscillators = {};
+
+
+            $("body").keydown(function(event) {
+
+                //console.log("KeyDown Event: " + event.which);
+
+
+                event.preventDefault();
+
+                // Determine if the note is already being held down
+                if (keysPressed.indexOf(event.which) > -1) {
+                    //console.log("Keys Pressed: " + keysPressed);
+                    console.log("key already pressed");
+                    return;
+                }
+
+
+                // If this is a new note, initiate sound synthesis
+                else {
+
+                    if ( ragaCharToStep[event.which] != undefined ){
+                        keysPressed.push(event.which);
+                        step = ragaCharToStep[event.which];
+                        oscillators[event.which] = audioCtx.createOscillator();
+                        oscillators[event.which].connect(gainNode);
+                        oscillators[event.which].type = "sawtooth";
+                        oscillators[event.which].frequency.value = ragaStepToPitch(step,base);
+                        oscillators[event.which].start();
+                    }
+                    // make shift key toggle raga
+                    else if (event.which == 16) {
+
+                        scale = (scale +1) % pentatonicRagaCodes.length;
+                        chosenRaga = pentatonicRagaCodes[scale].scale;
+                        console.log("Scale switched to : " + scale);
+
+                    }
+
+
+
+                    console.log("Keys Pressed: " + keysPressed);
+
+                }
+
+            });
+
+            $("body").keyup(function(event){
+                if (keysPressed.indexOf(event.which) > -1){
+                    oscillators[event.which].stop();
+                    delete oscillators[event.which];
+                    index = keysPressed.indexOf(event.which);
+                    keysPressed.splice(index,1);
+                }
+                console.log("Keys Pressed: " + keysPressed);
+
+            });
+
+            var chosenRaga = [0,2,4,7,11];
+            var scale = 0;
+
+            function ragaStepToPitch(step, base){
+                var local_base = base;
+                var local_step = step
+                while (local_step >= 5) {
+                    local_base *= 2;
+                    local_step -= 5;
+
+                }
+                return stepToPitch(chosenRaga[local_step], local_base);
+            }
+
+            function stepToPitch (step, base){
+
+                if (justIntonation){
+                    pitch = justPitch(base,step);
+                    console.log("Step: " + step + ", Base: " + base + ", Pitch: " + pitch);
+
+
+                }
+                else {
+                    pitch = base * Math.pow(r, step);
+                    console.log("Step: " + step + ", Base: " + base + ", Pitch: " + pitch);
+                }
+                return pitch;
+
+            }
+
+            $(canvas).mousedown(function myDown(e)
+            {
+              var position = $(canvas).position();
+              var x = e.pageX-position.left;
+              var y = e.pageY-position.top;
+
+              var new_scale = Math.floor(x/250) + 1;
+              var new_scale = new_scale + 4 * Math.floor(y/250) -1 ;
+
+              console.log(new_scale);
+
+              chosenRaga = pentatonicRagaCodes[new_scale].scale;
+              scale = new_scale;
+
+              console.log("Scale switched to : " + new_scale);
+
+            });
+
+
+
+        </script>
+
+        <script>
+        // Play Tampura
+        //Create the audio tag
+            var tampuraFile = document.createElement("audio");
+            tampuraFile.preload = "auto";
+
+            //Load the sound file (using a source element for expandability)
+            var src = document.createElement("source");
+            src.src = "raga_a_gents_pancham.mp3";
+            tampuraFile.appendChild(src);
+
+            //Load the audio tag
+            //It auto plays as a fallback
+            tampuraFile.load();
+            tampuraFile.loop = true;
+            //tampuraFile.play();
+
+
+            //Plays the sound
+            function play() {
+               //Set the current time for the audio file to the beginning
+               tampuraFile.currentTime = 0.01;
+
+               //Due to a bug in Firefox, the audio needs to be played after a delay
+               setTimeout(function(){tampuraFile.play();},1);
+            }
+        </script>
+
+        <script>
+
+        var tampuraOn = false;
+        //Controls for onscreen widgets
+        $("#tampuraButton").click(function(){
+            if (tampuraOn) {
+                tampuraOn = false;
+                tampuraFile.pause();
+            }
+            else {
+                tampuraOn = true;
+                tampuraFile.play();
+
+            }
+
+        });
+
+        </script>
+
+    </body>
+
+</html>
