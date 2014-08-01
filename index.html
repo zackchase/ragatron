@@ -78,7 +78,7 @@
                         step = ragaCharToStep[event.which];
                         oscillators[event.which] = audioCtx.createOscillator();
                         oscillators[event.which].connect(gainNode);
-                        oscillators[event.which].type = "sawtooth";
+                        oscillators[event.which].type = "square";
                         oscillators[event.which].frequency.value = ragaStepToPitch(step,base);
                         oscillators[event.which].start();
                     }
@@ -177,6 +177,7 @@
             //It auto plays as a fallback
             tampuraFile.load();
             tampuraFile.loop = true;
+            tampuraFile.volume = .5;
             //tampuraFile.play();
 
 
