@@ -1,0 +1,454 @@
+
+<html>
+
+
+    <head>
+        <link rel="stylesheet" href = "css/bootstrap.min.css">
+        <script src = "js/palette.js"></script>
+    </head>
+
+    <body onload="draw();">
+
+        <div id ="welcome">
+            <h4>Ragatron 0.1</h4>
+            <p>Press the "Tampura" button to turn the tampura on and off. Improvise by pressing letter and number keys on your keyboard. Change the scale by pressing on the colored blocks.</p>
+        </div>
+
+        <div>
+        <button type="button" class="btn btn-lg btn-primary" id="tampuraButton">Tampura</button>
+        <button type="button" class="btn btn-lg btn-warning" id="pauseButton">Pause</button>
+        </div>
+
+        <div>
+        <canvas id="canvas" width="1000" height="500"></canvas>
+        </div>
+
+        <script src = "./js/jquery.js")></script>
+        <script src = "./js/charToStep.js")></script>
+        <script src = "./js/justIntonation.js"></script>
+        <Script src = "./js/ragaCodes.js"></script>
+        <script src = "./js/probability.js"></script>
+        <script>
+            // This would work for chrome
+            //  var audioCtx = new AudioContext();
+
+            var audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            var oscillator = audioCtx.createOscillator();
+            var gainNode = audioCtx.createGain();
+
+            var justIntonation = true;
+
+            var base = 220;
+            var r = Math.pow(2, 1/12);
+
+            // list that keeps track of which keys are pressed at any time
+            // when a key is pressed it is added to the list
+            // on keyup() the key is removed from the list
+            var keysPressed = [];
+
+            //oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+
+            //oscillator.type = "square";
+            //oscillator.frequency.value = 440;
+            //oscillator.start();
+
+
+
+            //create an oscillator for each note?
+
+            oscillators = {};
+
+
+            $("body").keydown(function(event) {
+
+                //console.log("KeyDown Event: " + event.which);
+
+
+                event.preventDefault();
+
+                // Determine if the note is already being held down
+                if (keysPressed.indexOf(event.which) > -1) {
+                    //console.log("Keys Pressed: " + keysPressed);
+                    console.log("key already pressed");
+                    return;
+                }
+
+
+                // If this is a new note, initiate sound synthesis
+                else {
+
+                    if ( ragaCharToStep[event.which] != undefined ){
+                        keysPressed.push(event.which);
+                        step = ragaCharToStep[event.which];
+                        oscillators[event.which] = audioCtx.createOscillator();
+                        oscillators[event.which].connect(gainNode);
+                        oscillators[event.which].type = "square";
+                        oscillators[event.which].frequency.value = ragaStepToPitch(step,base);
+                        oscillators[event.which].start();
+                    }
+                    // make shift key toggle raga
+                    else if (event.which == 16) {
+
+                        scale = (scale +1) % pentatonicRagaCodes.length;
+                        chosenRaga = pentatonicRagaCodes[scale].scale;
+                        console.log("Scale switched to : " + scale);
+
+                    }
+
+
+
+                    console.log("Keys Pressed: " + keysPressed);
+
+                }
+
+            });
+
+            $("body").keyup(function(event){
+                if (keysPressed.indexOf(event.which) > -1){
+                    oscillators[event.which].stop();
+                    delete oscillators[event.which];
+                    index = keysPressed.indexOf(event.which);
+                    keysPressed.splice(index,1);
+                }
+                console.log("Keys Pressed: " + keysPressed);
+
+            });
+
+            var chosenRaga = [0,2,4,7,11];
+            var scale = 0;
+
+            function ragaStepToPitch(step, base){
+                var local_base = base;
+                var local_step = step
+                while (local_step >= 5) {
+                    local_base *= 2;
+                    local_step -= 5;
+
+                }
+                return stepToPitch(chosenRaga[local_step], local_base);
+            }
+
+
+            function stepToPitch (step, base){
+
+                if (justIntonation){
+                    pitch = justPitch(base,step);
+                    console.log("Step: " + step + ", Base: " + base + ", Pitch: " + pitch);
+
+
+                }
+                else {
+                    pitch = base * Math.pow(r, step);
+                    console.log("Step: " + step + ", Base: " + base + ", Pitch: " + pitch);
+                }
+                return pitch;
+
+            }
+
+            $(canvas).mousedown(function myDown(e)
+            {
+              var position = $(canvas).position();
+              var x = e.pageX-position.left;
+              var y = e.pageY-position.top;
+
+              var new_scale = Math.floor(x/250) + 1;
+              var new_scale = new_scale + 4 * Math.floor(y/250) -1 ;
+
+              console.log(new_scale);
+
+              chosenRaga = pentatonicRagaCodes[new_scale].scale;
+              scale = new_scale;
+
+              console.log("Scale switched to : " + new_scale);
+
+            });
+
+
+
+        </script>
+
+        <script>
+        // Play Tampura
+        //Create the audio tag
+            var tampuraFile = document.createElement("audio");
+            tampuraFile.preload = "auto";
+
+            //Load the sound file (using a source element for expandability)
+            var src = document.createElement("source");
+            src.src = "raga_a_gents_pancham.mp3";
+            tampuraFile.appendChild(src);
+
+            //Load the audio tag
+            //It auto plays as a fallback
+            tampuraFile.load();
+            tampuraFile.loop = true;
+            tampuraFile.volume = .5;
+            //tampuraFile.play();
+
+
+            //Plays the sound
+            function play() {
+               //Set the current time for the audio file to the beginning
+               tampuraFile.currentTime = 0.01;
+
+               //Due to a bug in Firefox, the audio needs to be played after a delay
+               setTimeout(function(){tampuraFile.play();},1);
+            }
+        </script>
+
+        <script>
+
+        var tampuraOn = false;
+        //Controls for onscreen widgets
+        $("#tampuraButton").click(function(){
+            if (tampuraOn) {
+                tampuraOn = false;
+                tampuraFile.pause();
+            }
+            else {
+                tampuraOn = true;
+                tampuraFile.play();
+
+            }
+
+        });
+
+
+        </script>
+
+        <script>
+
+            // Set the method of producing scale tones
+            var mode = 6;
+
+            var toggle = true;
+            var range = 11;
+            var step =0;
+            gainNode.gain.value = .5;
+            var interval = 175;
+
+            var duration = .92 * interval;
+            var lastStep = 0;
+
+            function changePitch(){
+
+                switch (mode){
+                    case 0: {
+                        // toggle between two notes
+                        if  (toggle){
+                            nextNote(440, duration);
+                        }
+                        else {
+                            nextNote(660, duration);
+
+                        }
+                        toggle = !toggle
+                        break;
+
+                    }
+                    case 1: {
+                    // Walk up scale repeatedly
+                        step = (step+1) % range;
+                        nextNote(ragaStepToPitch(step, base), duration);
+                        break;
+
+                    }
+
+                    case 2: {
+                    // Walk up and down
+                        if (toggle){
+                            if (step < range-1) {
+                                step += 1;
+                                console.log("stepped up");
+                            }
+
+                            else {
+                                toggle = false;
+                                step--;
+                            }
+                        }
+                        else{
+                            if (step > 0) {
+                                step--;
+                            }
+                            else {
+                                toggle = true;
+                                step++;
+                            }
+                        }
+                        nextNote(ragaStepToPitch(step,base), duration);
+                        break;
+
+                    }
+
+                    case 3:{
+                    // Set oscillator to random raga step
+                        nextNote(ragaStepToPitch(Math.floor(Math.random() * range), base), duration);
+                        break;
+                    }
+
+                    case 4: {
+                    // Walk up or down with probability .5
+                        if (step == 0){
+                            step += 1;
+                        }
+                        else if (step == range-1){
+                            step -= 1;
+                        }
+                        else {
+                            if (Math.random() >= .5 ){
+                                step += 1;
+                            }
+                            else {
+                                step -= 1;
+                            }
+                        }
+                        nextNote(ragaStepToPitch(step,base), duration);
+                        break;
+                    }
+
+                    case 5: {
+                    // up with probability .4, .1 (for 1 step, 2 step) down with probability (.4, .1)
+                        var downTwo, downOne, upOne, upTwo, sameNote;
+                        if (step == 0){
+                            downOne = 0;
+                        }
+                        else {
+                            downOne = .4;
+                        }
+
+                        if (step < 2){
+                            downTwo = 0;
+                        }
+                        else {
+                            downTwo = .1;
+                        }
+
+                        if (step == (range-1)){
+                            upOne = 0;
+                        }
+                        else {
+                            upOne = .4;
+                        }
+
+                        if (step > (range-3)){
+                            upTwo = 0;
+                        }
+                        else {
+                            upTwo = .1;
+                        }
+                        sameNote = 0.02;
+
+                        console.log("step: " + step + " relative probs: " +[downTwo, downOne, sameNote, upOne, upTwo]);
+                        index = sampleEvenly([downTwo, downOne, sameNote, upOne, upTwo]);
+                        index = index - 2;
+                        step = step + index;
+                        console.log(index)
+                        nextNote(ragaStepToPitch(step,base), duration);
+                        break;
+                    }
+
+                    case 6: {
+                    // up with probability .4, .1 (for 1 step, 2 step) down with probability (.4, .1)
+                    // Also double probability of moving in same direction as last step
+                        var downTwo, downOne, upOne, upTwo, sameNote;
+                        if (step == 0){
+                            downOne = 0;
+                        }
+                        else {
+                            downOne = .4;
+                        }
+
+                        if (step < 2){
+                            downTwo = 0;
+                        }
+                        else {
+                            downTwo = .1;
+                        }
+
+                        if (step == (range-1)){
+                            upOne = 0;
+                        }
+                        else {
+                            upOne = .4;
+                        }
+
+                        if (step > (range-3)){
+                            upTwo = 0;
+                        }
+                        else {
+                            upTwo = .1;
+                        }
+                        sameNote = 0.02;
+
+
+                        console.log("step: " + step + " relative probs: " +[downTwo, downOne, sameNote, upOne, upTwo]);
+
+                        var multiplier = 4;
+                        if (lastStep > 0){
+                            upOne *= multiplier;
+                            upTwo *= multiplier;
+
+                        }
+                        else if (lastStep < 0){
+                            downOne *= multiplier;
+                            downTwo *= multiplier;
+                        }
+
+                        index = sampleEvenly([downTwo, downOne, sameNote, upOne, upTwo]);
+                        index = index - 2;
+
+                        lastStep = index;
+
+                        step = step + index;
+                        console.log(index)
+                        nextNote(ragaStepToPitch(step,base), duration);
+                        break;
+                    }
+
+                //Set oscillator
+                }
+            };
+
+
+            var currentIntervalID = setInterval(changePitch, interval);
+
+            var oscillatorOn = true;
+
+            $("#pauseButton").click(function(){
+
+                if (oscillatorOn) {
+                    clearInterval(currentIntervalID);
+                }
+                else {
+                    currentIntervalID = setInterval(changePitch, interval);
+
+                }
+                oscillatorOn = !oscillatorOn;
+            });
+
+
+
+            function nextNote(freq, duration){
+                oscillators["auto"] = audioCtx.createOscillator();
+                oscillators["auto"].connect(gainNode);
+                oscillators["auto"].type = "square";
+                oscillators["auto"].frequency.value = ragaStepToPitch(step,base);
+                oscillators["auto"].start();
+
+                setTimeout(function(){
+                    for (var osc in oscillators){
+                        oscillators[osc].stop();
+                        delete oscillators[osc];
+                    }
+                }, duration );
+
+
+            }
+
+        </script>
+
+    </body>
+
+</html>
